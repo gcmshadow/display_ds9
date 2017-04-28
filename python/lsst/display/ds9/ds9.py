@@ -35,6 +35,7 @@ import os
 import re
 import sys
 import time
+import tempfile
 
 import numpy as np
 
@@ -384,6 +385,20 @@ class DisplayImpl(virtualDevice.DisplayImpl):
 
         ds9Cmd(cmd, silent=True)
 
+    def _overlayCatalog(self, sourceCat):
+        table = sourceCat.asAstropy()
+        table['ra'] = table['coord_ra'].to('deg')
+        table['dec'] = table['coord_dec'].to('deg')
+        with tempfile.NamedTemporaryFile(delete=False,
+                                         suffix='.tsv') as fd:
+            table.write(fd.name, format='ascii.tab')
+
+        cmd = selectFrame(self.display.frame) + "; "
+        cmd += 'catalog import tsv %s; catalog ra ra; catalog dec dec; ' % fd.name
+        cmd += 'catalog psystem wcs ; catalog psky icrs; catalog show'
+        ds9Cmd(cmd, silent=False)
+        os.remove(fd.name)
+
     def _drawLines(self, points, ctype):
         """Connect the points, a list of (col,row)
         Ctype is the name of a colour (e.g. 'red')"""
@@ -477,7 +492,7 @@ def _i_mtv(data, wcs, title, isMask):
 
         pfd = os.popen(xpa_cmd, "w")
     else:
-        pfd = file("foo.fits", "w")
+        pfd = open("foo.fits", "w")
 
     ds9Cmd(flush=True, silent=True)
 
